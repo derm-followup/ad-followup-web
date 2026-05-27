@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supabase 原生数据库测试页</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f5f7fb;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, "Microsoft YaHei", sans-serif;
+      color: #111827;
+    }
+    .page {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 18px 14px 40px;
+    }
+    h1 {
+      font-size: 24px;
+      margin: 8px 0 8px;
+    }
+    .desc {
+      color: #4b5563;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 14px;
+      margin: 12px 0;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      margin: 10px 0 6px;
+    }
+    input, select {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 11px 12px;
+      font-size: 15px;
+      background: #fff;
+    }
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 999px;
+      padding: 13px 14px;
+      margin: 8px 0;
+      font-size: 16px;
+      color: white;
+      background: #1989fa;
+    }
+    button.secondary {
+      background: #10b981;
+    }
+    button.gray {
+      background: #6b7280;
+    }
+    .warn {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      margin: 12px 0;
+    }
+    .log {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #111827;
+      color: #d1fae5;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.5;
+      min-height: 160px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Supabase 数据库测试页</h1>
+    <div class="desc">
+      这个页面不使用 Vue/Vant，只测试 GitHub Pages → Supabase 是否能写入。
+      测试成功后，请到 Supabase 的 Table Editor 查看是否新增 TEST 数据。
+    </div>
+
+    <div class="warn">
+      使用前请先替换代码中的 SUPABASE_URL 和 SUPABASE_ANON_KEY。只能使用 anon public key，不能使用 service_role key。
+    </div>
+
+    <div class="card">
+      <label>测试编号 study_id</label>
+      <input id="study_id" />
+
+      <label>性别</label>
+      <select id="sex">
+        <option value="M">男</option>
+        <option value="F">女</option>
+      </select>
+
+      <label>年龄（月）</label>
+      <input id="age_month" type="number" value="36" />
+
+      <label>随访月</label>
+      <input id="followup_month" type="number" value="1" />
+    </div>
+
+    <button onclick="testBaselineInsert()">测试写入 baseline_table</button>
+    <button class="secondary" onclick="testFollowupInsert()">测试写入 followup_table</button>
+    <button class="gray" onclick="clearLog()">清空日志</button>
+
+    <div class="card">
+      <div id="log" class="log">等待测试...</div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://你的项目.supabase.co";
+    const SUPABASE_ANON_KEY = "你的 anon public key";
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    document.getElementById("study_id").value =
+      "TEST" + Date.now().toString().slice(-6);
+
+    function getStudyId() {
+      return document.getElementById("study_id").value.trim().toUpperCase();
+    }
+
+    function log(message, obj) {
+      const el = document.getElementById("log");
+      const time = new Date().toLocaleString();
+      let text = "[" + time + "] " + message;
+      if (obj !== undefined) {
+        try {
+          text += "\\n" + JSON.stringify(obj, null, 2);
+        } catch (e) {
+          text += "\\n" + String(obj);
+        }
+      }
+      el.textContent = text + "\\n\\n" + el.textContent;
+      console.log(message, obj || "");
+    }
+
+    function clearLog() {
+      document.getElementById("log").textContent = "";
+    }
+
+    async function testBaselineInsert() {
+      const payload = {
+        study_id: getStudyId(),
+        sex: document.getElementById("sex").value,
+        age_month: Number(document.getElementById("age_month").value),
+        disease_duration_month: 12,
+        onset_age_month: 12,
+        baseline_easi: 5.5,
+        baseline_iga: 2,
+        itch_nrs_baseline: 5,
+        sleep_nrs_baseline: 3,
+        relapse_past_6m: 2,
+        family_atopy: false,
+        allergic_rhinitis: false,
+        asthma: false,
+        food_allergy: false,
+        steroid_phobia_nrs: 5,
+        moisturizer_freq: "daily_once",
+        group_type: "usual_care",
+        initial_treatment: "test insert",
+        consent_status: true
+      };
+
+      log("准备写入 baseline_table", payload);
+
+      const { data, error } = await supabaseClient
+        .from("baseline_table")
+        .insert([payload])
+        .select();
+
+      if (error) {
+        log("baseline_table 写入失败", error);
+        alert("baseline 写入失败：" + error.message);
+      } else {
+        log("baseline_table 写入成功", data);
+        alert("baseline 写入成功");
+      }
+    }
+
+    async function testFollowupInsert() {
+      const payload = {
+        study_id: getStudyId(),
+        followup_month: Number(document.getElementById("followup_month").value),
+        visit_week: 0,
+        poem_q1: 1,
+        poem_q2: 1,
+        poem_q3: 0,
+        poem_q4: 0,
+        poem_q5: 0,
+        poem_q6: 1,
+        poem_q7: 2,
+        poem_total: 5,
+        itch_vas: 4,
+        sleep_vas: 2,
+        relapse_this_month: false,
+        relapse_date: null,
+        tcs_days: 3,
+        tci_days: 0,
+        moisturizer_days: 20,
+        self_discontinuation: false,
+        unplanned_visit: false,
+        treatment_escalation: false,
+        adverse_event: "test insert",
+        photo_url: "",
+        photo_uploaded: false,
+        followup_completed: true
+      };
+
+      log("准备写入 followup_table", payload);
+
+      const { data, error } = await supabaseClient
+        .from("followup_table")
+        .insert([payload])
+        .select();
+
+      if (error) {
+        log("followup_table 写入失败", error);
+        alert("followup 写入失败：" + error.message);
+      } else {
+        log("followup_table 写入成功", data);
+        alert("followup 写入成功");
+      }
+    }
+  </script>
+</body>
+</html>
