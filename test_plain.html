@@ -113,6 +113,9 @@
 
       <label>随访月</label>
       <input id="followup_month" type="number" value="1" />
+
+      <label>测试图片上传</label>
+      <input id="photo_file" type="file" accept="image/*" />
     </div>
 
     <button onclick="testBaselineInsert()">测试写入 baseline_table</button>
@@ -196,6 +199,34 @@
     }
 
     async function testFollowupInsert() {
+      const fileInput = document.getElementById("photo_file");
+      const file = fileInput.files[0];
+      let photoUrl = "";
+
+if (file) {
+  const fileName =
+    getStudyId() + "_" + Date.now() + ".jpg";
+
+  const { data: uploadData, error: uploadError } =
+    await supabaseClient.storage
+      .from("ad-photos")
+      .upload(fileName, file);
+
+  if (uploadError) {
+    log("图片上传失败", uploadError);
+    alert("图片上传失败：" + uploadError.message);
+    return;
+  }
+
+  const { data: publicData } = supabaseClient.storage
+    .from("ad-photos")
+    .getPublicUrl(fileName);
+
+  photoUrl = publicData.publicUrl;
+
+  log("图片上传成功", photoUrl);
+}
+
       const payload = {
         study_id: getStudyId(),
         followup_month: Number(document.getElementById("followup_month").value),
@@ -218,8 +249,8 @@
         unplanned_visit: false,
         treatment_escalation: false,
         adverse_event: "test insert",
-        photo_url: "",
-        photo_uploaded: false,
+        photo_url: photoUrl,
+        photo_uploaded: !!photoUrl,
         followup_completed: true
       };
 
