@@ -4,27 +4,48 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>儿童AD基线建档</title>
-  <link rel="stylesheet" href="https://fastly.jsdelivr.net/npm/vant@4/lib/index.css" />
+  <link rel="stylesheet" href="https://unpkg.com/vant@4/lib/index.css" />
   <style>
     body { background:#f7f8fa; margin:0; }
-    .page { max-width: 760px; margin: 0 auto; padding-bottom: 32px; }
-    .header { padding: 18px 16px 8px; }
-    .title { font-size: 22px; font-weight: 700; }
-    .subtitle { color:#666; font-size: 13px; margin-top: 6px; }
-    .card { margin: 12px; border-radius: 14px; overflow:hidden; }
-    .hint { color:#888; font-size:12px; padding: 0 16px 8px; }
+    .page { max-width:760px; margin:0 auto; padding-bottom:32px; }
+    .header { padding:18px 16px 8px; }
+    .title { font-size:22px; font-weight:700; }
+    .subtitle { color:#666; font-size:13px; margin-top:6px; line-height:1.5; }
+    .card { margin:12px; border-radius:14px; overflow:hidden; }
+    .hint { color:#888; font-size:12px; padding:0 16px 8px; }
+    .success-card { margin:12px; background:#fff; border-radius:16px; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,.05); }
+    .study-id { font-size:24px; font-weight:800; color:#1989fa; letter-spacing:.5px; margin:10px 0; word-break:break-all; }
+    .mini-table { width:100%; border-collapse:collapse; font-size:12px; background:#fff; }
+    .mini-table th,.mini-table td { border-bottom:1px solid #eee; padding:8px 6px; text-align:left; }
+    .mini-table th { color:#666; font-weight:600; }
   </style>
 </head>
 <body>
 <div id="app" class="page">
   <div class="header">
     <div class="title">儿童AD首诊基线建档</div>
-    <div class="subtitle">医生/研究助理填写，一名患儿只建立一次 baseline 记录</div>
+    <div class="subtitle">医生/研究助理填写。一名患儿只建立一次 baseline 记录。提交后生成研究编号，后续月度随访均使用同一个编号。</div>
   </div>
 
-  <van-form @submit="submitForm">
+  <div v-if="submitted" class="success-card">
+    <van-icon name="checked" color="#07c160" size="36" />
+    <h2>建档成功</h2>
+    <div>请把下面的研究编号复制到本地 clinic_id ↔ study_id 对照表，并发给家长用于后续随访。</div>
+    <div class="study-id">{ submittedStudyId }</div>
+    <van-button round block type="primary" @click="copyStudyId">复制研究编号</van-button>
+    <van-button round block plain type="primary" style="margin-top:10px" @click="openSurvey">打开该患儿随访页</van-button>
+    <van-button round block plain type="success" style="margin-top:10px" @click="resetForm">继续建档下一位</van-button>
+  </div>
+
+  <van-form v-else @submit="submitForm">
     <van-cell-group inset class="card">
-      <van-field v-model="form.study_id" name="study_id" label="研究编号" placeholder="如 AD001" required />
+      <van-field v-model="form.study_id" name="study_id" label="研究编号" required readonly>
+        <template #button>
+          <van-button size="small" type="primary" native-type="button" @click="regenerateStudyId">重新生成</van-button>
+        </template>
+      </van-field>
+      <div class="hint">自动生成格式：AD + 年月日 + 随机码。不要在云端保存真实门诊号。</div>
+
       <van-field name="sex" label="性别" required>
         <template #input>
           <van-radio-group v-model="form.sex" direction="horizontal">
@@ -41,45 +62,35 @@
     <van-cell-group inset class="card">
       <van-field v-model.number="form.baseline_easi" type="number" label="基线EASI" placeholder="如 6.5" />
       <van-field name="baseline_iga" label="基线IGA">
-        <template #input>
-          <van-stepper v-model="form.baseline_iga" min="0" max="4" />
-        </template>
+        <template #input><van-stepper v-model="form.baseline_iga" min="0" max="4" /></template>
       </van-field>
       <van-field name="itch_nrs_baseline" label="瘙痒NRS">
         <template #input>
           <van-slider v-model="form.itch_nrs_baseline" :min="0" :max="10" bar-height="6px" style="width:70%" />
-          <span style="margin-left:12px">{{ form.itch_nrs_baseline }}</span>
+          <span style="margin-left:12px">{ form.itch_nrs_baseline }</span>
         </template>
       </van-field>
       <van-field name="sleep_nrs_baseline" label="睡眠影响">
         <template #input>
           <van-slider v-model="form.sleep_nrs_baseline" :min="0" :max="10" bar-height="6px" style="width:70%" />
-          <span style="margin-left:12px">{{ form.sleep_nrs_baseline }}</span>
+          <span style="margin-left:12px">{ form.sleep_nrs_baseline }</span>
         </template>
       </van-field>
       <van-field v-model.number="form.relapse_past_6m" type="number" label="近6月复发次数" placeholder="如 3" />
     </van-cell-group>
 
     <van-cell-group inset class="card">
-      <van-field name="family_atopy" label="家族过敏史">
-        <template #input><van-switch v-model="form.family_atopy" size="22" /></template>
-      </van-field>
-      <van-field name="allergic_rhinitis" label="过敏性鼻炎">
-        <template #input><van-switch v-model="form.allergic_rhinitis" size="22" /></template>
-      </van-field>
-      <van-field name="asthma" label="哮喘">
-        <template #input><van-switch v-model="form.asthma" size="22" /></template>
-      </van-field>
-      <van-field name="food_allergy" label="食物过敏">
-        <template #input><van-switch v-model="form.food_allergy" size="22" /></template>
-      </van-field>
+      <van-field name="family_atopy" label="家族过敏史"><template #input><van-switch v-model="form.family_atopy" size="22" /></template></van-field>
+      <van-field name="allergic_rhinitis" label="过敏性鼻炎"><template #input><van-switch v-model="form.allergic_rhinitis" size="22" /></template></van-field>
+      <van-field name="asthma" label="哮喘"><template #input><van-switch v-model="form.asthma" size="22" /></template></van-field>
+      <van-field name="food_allergy" label="食物过敏"><template #input><van-switch v-model="form.food_allergy" size="22" /></template></van-field>
     </van-cell-group>
 
     <van-cell-group inset class="card">
       <van-field name="steroid_phobia_nrs" label="激素担心程度">
         <template #input>
           <van-slider v-model="form.steroid_phobia_nrs" :min="0" :max="10" bar-height="6px" style="width:70%" />
-          <span style="margin-left:12px">{{ form.steroid_phobia_nrs }}</span>
+          <span style="margin-left:12px">{ form.steroid_phobia_nrs }</span>
         </template>
       </van-field>
       <div class="hint">0=完全不担心；10=非常担心</div>
@@ -105,34 +116,66 @@
       </van-field>
 
       <van-field v-model="form.initial_treatment" rows="3" autosize type="textarea" label="首次治疗方案" placeholder="如：地奈德bid 5天 + 保湿 + 复诊建议" />
-      <van-field name="consent_status" label="同意随访/科研">
-        <template #input><van-switch v-model="form.consent_status" size="22" /></template>
-      </van-field>
+      <van-field name="consent_status" label="同意随访/科研"><template #input><van-switch v-model="form.consent_status" size="22" /></template></van-field>
     </van-cell-group>
 
-    <div style="margin: 20px 12px;">
+    <div style="margin:20px 12px;">
       <van-button round block type="primary" native-type="submit" :loading="loading">提交建档</van-button>
     </div>
   </van-form>
+
+  <van-cell-group inset class="card" v-if="statusRows.length">
+    <van-cell title="本机最近建档状态表" value="仅保存在当前设备" />
+    <div style="overflow-x:auto;">
+      <table class="mini-table">
+        <thead><tr><th>时间</th><th>study_id</th><th>类型</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr v-for="row in statusRows" :key="row.id">
+            <td>{ row.time }</td><td>{ row.study_id }</td><td>{ row.type }</td><td>{ row.status }</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </van-cell-group>
 </div>
 
-<script src="https://fastly.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-<script src="https://fastly.jsdelivr.net/npm/vant@4/lib/vant.min.js"></script>
-<script src="https://fastly.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://unpkg.com/vant@4/lib/vant.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
-
-// ====== Supabase 配置：请替换为你自己的 ======
-const SUPABASE_URL = "https://你的项目.supabase.co";
-const SUPABASE_ANON_KEY = "你的 anon public key";
+const SUPABASE_URL = "https://hogbiwyvsttqdkriugqt.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhvZ2Jpd3l2c3R0cWRrcml1Z3F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzExNzcsImV4cCI6MjA5NTAwNzE3N30.7gz9aVE9YRwkz69MPgkOJxtZ1EhwWmiNLRpTWaTl0bg";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const { createApp, reactive, ref } = Vue;
+const { createApp, reactive, ref, onMounted } = Vue;
+
+function pad2(n) { return String(n).padStart(2, "0"); }
+function generateStudyId() {
+  const d = new Date();
+  const datePart = d.getFullYear() + pad2(d.getMonth()+1) + pad2(d.getDate());
+  const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return "AD" + datePart + randomPart;
+}
+function nowText() { return new Date().toLocaleString("zh-CN", { hour12:false }); }
+function loadStatus() {
+  try { return JSON.parse(localStorage.getItem("ad_followup_status") || "[]"); }
+  catch(e) { return []; }
+}
+function saveStatus(row) {
+  const rows = loadStatus();
+  rows.unshift({ id: Date.now() + Math.random(), ...row });
+  localStorage.setItem("ad_followup_status", JSON.stringify(rows.slice(0, 30)));
+}
 
 createApp({
   setup() {
     const loading = ref(false);
+    const submitted = ref(false);
+    const submittedStudyId = ref("");
+    const statusRows = ref(loadStatus());
+
     const form = reactive({
-      study_id: "",
+      study_id: generateStudyId(),
       sex: "",
       age_month: null,
       disease_duration_month: null,
@@ -153,24 +196,60 @@ createApp({
       consent_status: true
     });
 
+    function regenerateStudyId() { form.study_id = generateStudyId(); }
+
+    async function copyStudyId() {
+      try {
+        await navigator.clipboard.writeText(submittedStudyId.value);
+        vant.showSuccessToast("已复制");
+      } catch(e) {
+        vant.showDialog({ title:"研究编号", message: submittedStudyId.value });
+      }
+    }
+
+    function openSurvey() {
+      const surveyUrl = new URL("survey.html", window.location.href);
+      surveyUrl.searchParams.set("study_id", submittedStudyId.value);
+      surveyUrl.searchParams.set("month", "1");
+      window.location.href = surveyUrl.toString();
+    }
+
+    function resetForm() { window.location.reload(); }
+
     async function submitForm() {
-      if (!form.study_id || !form.sex || form.age_month === null) {
+      if (!form.study_id || !form.sex || form.age_month === null || form.age_month === "") {
         vant.showToast("请填写研究编号、性别、年龄");
         return;
       }
       loading.value = true;
-      const payload = { ...form, study_id: form.study_id.trim().toUpperCase() };
+      const payload = {
+        ...form,
+        study_id: form.study_id.trim().toUpperCase(),
+        age_month: Number(form.age_month),
+        disease_duration_month: form.disease_duration_month === null || form.disease_duration_month === "" ? null : Number(form.disease_duration_month),
+        onset_age_month: form.onset_age_month === null || form.onset_age_month === "" ? null : Number(form.onset_age_month),
+        baseline_easi: form.baseline_easi === null || form.baseline_easi === "" ? null : Number(form.baseline_easi),
+        relapse_past_6m: form.relapse_past_6m === null || form.relapse_past_6m === "" ? null : Number(form.relapse_past_6m)
+      };
+
       const { error } = await supabaseClient.from("baseline_table").insert([payload]);
       loading.value = false;
+
       if (error) {
         console.error(error);
-        vant.showDialog({ title: "提交失败", message: error.message });
+        saveStatus({ time: nowText(), study_id: payload.study_id, type:"baseline", status:"失败: " + error.message });
+        statusRows.value = loadStatus();
+        vant.showDialog({ title:"提交失败", message:error.message });
       } else {
-        vant.showSuccessToast("建档成功");
+        saveStatus({ time: nowText(), study_id: payload.study_id, type:"baseline", status:"成功" });
+        statusRows.value = loadStatus();
+        submittedStudyId.value = payload.study_id;
+        submitted.value = true;
       }
     }
 
-    return { form, loading, submitForm };
+    onMounted(() => { statusRows.value = loadStatus(); });
+    return { form, loading, submitted, submittedStudyId, statusRows, regenerateStudyId, copyStudyId, openSurvey, resetForm, submitForm };
   }
 }).use(vant).mount("#app");
 </script>

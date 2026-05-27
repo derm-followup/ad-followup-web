@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>儿童AD月度随访</title>
-  <link rel="stylesheet" href="https://fastly.jsdelivr.net/npm/vant@4/lib/index.css" />
+  <link rel="stylesheet" href="https://unpkg.com/vant@4/lib/index.css" />
   <style>
     body { background:#f7f8fa; margin:0; }
     .page { max-width:760px; margin:0 auto; padding-bottom:32px; }
@@ -12,24 +12,39 @@
     .title { font-size:22px; font-weight:700; }
     .subtitle { color:#666; font-size:13px; margin-top:6px; line-height:1.5; }
     .card { margin:12px; border-radius:14px; overflow:hidden; }
-    .qtitle { font-size:14px; color:#333; padding: 12px 16px 4px; }
+    .qtitle { font-size:14px; color:#333; padding:12px 16px 4px; }
     .score { font-weight:700; color:#1989fa; }
+    .success-card { margin:12px; background:#fff; border-radius:16px; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,.05); }
+    .study-id { font-size:22px; font-weight:800; color:#1989fa; letter-spacing:.5px; margin:8px 0; word-break:break-all; }
+    .photo-note { color:#888; font-size:12px; padding:0 16px 10px; line-height:1.5; }
+    .mini-table { width:100%; border-collapse:collapse; font-size:12px; background:#fff; }
+    .mini-table th,.mini-table td { border-bottom:1px solid #eee; padding:8px 6px; text-align:left; }
+    .mini-table th { color:#666; font-weight:600; }
   </style>
 </head>
 <body>
 <div id="app" class="page">
   <div class="header">
     <div class="title">儿童AD月度随访</div>
-    <div class="subtitle">家长填写。请根据孩子过去1周/本月实际情况填写。照片请上传清晰皮损照片。</div>
+    <div class="subtitle">家长填写。请使用医生给您的研究编号。建议每月填写一次，照片请上传局部皮损图，避免面部或可识别身份信息。</div>
   </div>
 
-  <van-form @submit="submitForm">
+  <div v-if="submitted" class="success-card">
+    <van-icon name="checked" color="#07c160" size="36" />
+    <h2>本月随访已完成</h2>
+    <div>研究编号</div>
+    <div class="study-id">{ submittedStudyId }</div>
+    <div>随访月份：第 { submittedMonth } 月</div>
+    <div>POEM总分：{ submittedPoemTotal } 分</div>
+    <div style="margin-top:12px;color:#666;font-size:13px;">请按医生要求下月继续填写。若皮疹明显加重或出现不适，请及时复诊。</div>
+    <van-button round block type="primary" style="margin-top:14px" @click="nextMonth">填写下月随访</van-button>
+  </div>
+
+  <van-form v-else @submit="submitForm">
     <van-cell-group inset class="card">
-      <van-field v-model="form.study_id" label="研究编号" placeholder="如 AD001" required />
+      <van-field v-model="form.study_id" label="研究编号" placeholder="如 AD20260527ABCD" required />
       <van-field name="followup_month" label="随访月份">
-        <template #input>
-          <van-stepper v-model="form.followup_month" min="1" max="12" />
-        </template>
+        <template #input><van-stepper v-model="form.followup_month" min="1" max="24" /></template>
       </van-field>
       <van-field name="visit_week" label="随访周数">
         <template #input>
@@ -48,7 +63,7 @@
       <van-field v-for="(q, idx) in poemQuestions" :key="idx" :label="'Q' + (idx+1)">
         <template #input>
           <div style="width:100%;">
-            <div style="font-size:13px;margin-bottom:8px;">{{ q }}</div>
+            <div style="font-size:13px;margin-bottom:8px;">{ q }</div>
             <van-radio-group v-model="poem[idx]" direction="horizontal">
               <van-radio :name="0">0天</van-radio>
               <van-radio :name="1">1-2天</van-radio>
@@ -66,69 +81,133 @@
       <van-field name="itch_vas" label="瘙痒VAS">
         <template #input>
           <van-slider v-model="form.itch_vas" :min="0" :max="10" bar-height="6px" style="width:70%" />
-          <span style="margin-left:12px" class="score">{{ form.itch_vas }}</span>
+          <span style="margin-left:12px" class="score">{ form.itch_vas }</span>
         </template>
       </van-field>
       <van-field name="sleep_vas" label="睡眠影响">
         <template #input>
           <van-slider v-model="form.sleep_vas" :min="0" :max="10" bar-height="6px" style="width:70%" />
-          <span style="margin-left:12px" class="score">{{ form.sleep_vas }}</span>
+          <span style="margin-left:12px" class="score">{ form.sleep_vas }</span>
         </template>
       </van-field>
-      <van-field name="relapse_this_month" label="本月是否复发">
-        <template #input><van-switch v-model="form.relapse_this_month" size="22" /></template>
-      </van-field>
-      <van-field v-if="form.relapse_this_month" v-model="form.relapse_date" type="date" label="复发日期" />
+      <van-field name="relapse_this_month" label="本月是否复发"><template #input><van-switch v-model="form.relapse_this_month" size="22" /></template></van-field>
     </van-cell-group>
 
     <van-cell-group inset class="card">
       <van-field v-model.number="form.tcs_days" type="number" label="本月激素天数" placeholder="0-31" />
       <van-field v-model.number="form.tci_days" type="number" label="本月TCI天数" placeholder="如他克莫司/吡美莫司" />
       <van-field v-model.number="form.moisturizer_days" type="number" label="本月保湿天数" placeholder="0-31" />
-      <van-field name="self_discontinuation" label="是否自行停药/减量">
-        <template #input><van-switch v-model="form.self_discontinuation" size="22" /></template>
-      </van-field>
-      <van-field name="unplanned_visit" label="是否非计划复诊">
-        <template #input><van-switch v-model="form.unplanned_visit" size="22" /></template>
-      </van-field>
-      <van-field name="treatment_escalation" label="是否升级治疗">
-        <template #input><van-switch v-model="form.treatment_escalation" size="22" /></template>
-      </van-field>
+      <van-field name="self_discontinuation" label="是否自行停药/减量"><template #input><van-switch v-model="form.self_discontinuation" size="22" /></template></van-field>
+      <van-field name="unplanned_visit" label="是否非计划复诊"><template #input><van-switch v-model="form.unplanned_visit" size="22" /></template></van-field>
+      <van-field name="treatment_escalation" label="是否升级治疗"><template #input><van-switch v-model="form.treatment_escalation" size="22" /></template></van-field>
       <van-field v-model="form.adverse_event" rows="2" autosize type="textarea" label="不良反应/备注" placeholder="没有可不填" />
     </van-cell-group>
 
     <van-cell-group inset class="card">
       <van-field label="上传皮损照片">
         <template #input>
-          <input type="file" accept="image/jpeg,image/png,image/webp" @change="handleFile" />
+          <input type="file" accept="image/*" @change="handleFile" />
         </template>
       </van-field>
+      <div class="photo-note">
+        已启用前端自动压缩：优先压缩到约1MB以内，长边约1600px。请尽量上传局部皮损照片，避免拍到面部、姓名、病历号等身份信息。
+      </div>
+      <van-cell v-if="photoInfo" title="图片状态" :value="photoInfo" />
     </van-cell-group>
 
     <div style="margin:20px 12px;">
       <van-button round block type="primary" native-type="submit" :loading="loading">提交随访</van-button>
     </div>
   </van-form>
+
+  <van-cell-group inset class="card" v-if="statusRows.length">
+    <van-cell title="本机最近随访状态表" value="仅保存在当前设备" />
+    <div style="overflow-x:auto;">
+      <table class="mini-table">
+        <thead><tr><th>时间</th><th>study_id</th><th>月份</th><th>POEM</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr v-for="row in statusRows" :key="row.id">
+            <td>{ row.time }</td><td>{ row.study_id }</td><td>{ row.month || '-' }</td><td>{ row.poem_total ?? '-' }</td><td>{ row.status }</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </van-cell-group>
 </div>
 
-<script src="https://fastly.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-<script src="https://fastly.jsdelivr.net/npm/vant@4/lib/vant.min.js"></script>
-<script src="https://fastly.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://unpkg.com/vant@4/lib/vant.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
-
-// ====== Supabase 配置：请替换为你自己的 ======
-const SUPABASE_URL = "https://你的项目.supabase.co";
-const SUPABASE_ANON_KEY = "你的 anon public key";
+const SUPABASE_URL = "https://hogbiwyvsttqdkriugqt.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhvZ2Jpd3l2c3R0cWRrcml1Z3F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzExNzcsImV4cCI6MjA5NTAwNzE3N30.7gz9aVE9YRwkz69MPgkOJxtZ1EhwWmiNLRpTWaTl0bg";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const { createApp, reactive, ref, computed } = Vue;
+const { createApp, reactive, ref, computed, onMounted } = Vue;
+
+function nowText() { return new Date().toLocaleString("zh-CN", { hour12:false }); }
+function loadStatus() {
+  try { return JSON.parse(localStorage.getItem("ad_followup_status") || "[]"); }
+  catch(e) { return []; }
+}
+function saveStatus(row) {
+  const rows = loadStatus();
+  rows.unshift({ id: Date.now() + Math.random(), ...row });
+  localStorage.setItem("ad_followup_status", JSON.stringify(rows.slice(0, 40)));
+}
+function getQueryParam(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+async function compressImage(file, maxSizeMB = 1, maxWidth = 1600) {
+  if (!file || !file.type.startsWith("image/")) return file;
+  const targetBytes = maxSizeMB * 1024 * 1024;
+  if (file.size <= targetBytes) return file;
+
+  const imageUrl = URL.createObjectURL(file);
+  const img = new Image();
+  img.src = imageUrl;
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+  });
+
+  let width = img.width;
+  let height = img.height;
+  const scale = Math.min(1, maxWidth / Math.max(width, height));
+  width = Math.round(width * scale);
+  height = Math.round(height * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, width, height);
+  URL.revokeObjectURL(imageUrl);
+
+  let quality = 0.82;
+  let blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", quality));
+  while (blob && blob.size > targetBytes && quality > 0.45) {
+    quality -= 0.08;
+    blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", quality));
+  }
+
+  const newName = file.name.replace(/\.[^.]+$/, "") + "_compressed.jpg";
+  return new File([blob], newName, { type:"image/jpeg" });
+}
 
 createApp({
   setup() {
     const loading = ref(false);
     const selectedFile = ref(null);
-    const poem = reactive([0,0,0,0,0,0,0]);
+    const photoInfo = ref("");
+    const submitted = ref(false);
+    const submittedStudyId = ref("");
+    const submittedMonth = ref(1);
+    const submittedPoemTotal = ref(0);
+    const statusRows = ref(loadStatus());
 
+    const poem = reactive([0,0,0,0,0,0,0]);
     const poemQuestions = [
       "皮肤瘙痒",
       "因皮肤问题影响睡眠",
@@ -146,7 +225,6 @@ createApp({
       itch_vas: 0,
       sleep_vas: 0,
       relapse_this_month: false,
-      relapse_date: "",
       tcs_days: 0,
       tci_days: 0,
       moisturizer_days: 0,
@@ -158,84 +236,123 @@ createApp({
 
     const poemTotal = computed(() => poem.reduce((a,b) => a + Number(b || 0), 0));
 
-    function handleFile(e) {
-      selectedFile.value = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-      if (selectedFile.value && selectedFile.value.size > 5 * 1024 * 1024) {
-        vant.showToast("图片超过5MB，请压缩后上传");
-        selectedFile.value = null;
+    async function handleFile(e) {
+      const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+      selectedFile.value = null;
+      photoInfo.value = "";
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        vant.showToast("请选择图片文件");
+        e.target.value = "";
+        return;
+      }
+      try {
+        const beforeKB = Math.round(file.size / 1024);
+        const compressed = await compressImage(file, 1, 1600);
+        selectedFile.value = compressed;
+        const afterKB = Math.round(compressed.size / 1024);
+        photoInfo.value = beforeKB === afterKB ? `已选择：${afterKB}KB` : `已压缩：${beforeKB}KB → ${afterKB}KB`;
+      } catch(err) {
+        console.error(err);
+        vant.showToast("图片处理失败，请换一张图片");
         e.target.value = "";
       }
     }
 
     async function uploadPhoto(studyId) {
-      if (!selectedFile.value) return { photo_url: "", photo_uploaded: false };
-      const file = selectedFile.value;
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${studyId}/M${form.followup_month}_${Date.now()}.${ext}`;
+      if (!selectedFile.value) return { photo_url:"", photo_uploaded:false };
+      const safeStudyId = studyId.replace(/[^A-Z0-9_-]/g, "");
+      const path = `${safeStudyId}/M${form.followup_month}_${Date.now()}.jpg`;
 
       const { data, error } = await supabaseClient.storage
         .from("ad-photos")
-        .upload(path, file, { upsert: false });
-
+        .upload(path, selectedFile.value, { contentType:"image/jpeg", upsert:false });
       if (error) throw error;
 
       const { data: urlData } = supabaseClient.storage
         .from("ad-photos")
         .getPublicUrl(data.path);
 
-      return { photo_url: urlData.publicUrl, photo_uploaded: true };
+      return { photo_url:urlData.publicUrl, photo_uploaded:true };
     }
 
     async function submitForm() {
-      if (!form.study_id) {
+      const studyId = form.study_id.trim().toUpperCase();
+      if (!studyId) {
         vant.showToast("请填写研究编号");
         return;
       }
+
       loading.value = true;
       try {
-        const studyId = form.study_id.trim().toUpperCase();
         const photo = await uploadPhoto(studyId);
 
         const payload = {
           study_id: studyId,
-          followup_month: form.followup_month,
-          visit_week: form.visit_week,
-          poem_q1: poem[0],
-          poem_q2: poem[1],
-          poem_q3: poem[2],
-          poem_q4: poem[3],
-          poem_q5: poem[4],
-          poem_q6: poem[5],
-          poem_q7: poem[6],
-          poem_total: poemTotal.value,
-          itch_vas: form.itch_vas,
-          sleep_vas: form.sleep_vas,
-          relapse_this_month: form.relapse_this_month,
-          relapse_date: form.relapse_this_month ? form.relapse_date || null : null,
-          tcs_days: form.tcs_days || 0,
-          tci_days: form.tci_days || 0,
-          moisturizer_days: form.moisturizer_days || 0,
-          self_discontinuation: form.self_discontinuation,
-          unplanned_visit: form.unplanned_visit,
-          treatment_escalation: form.treatment_escalation,
-          adverse_event: form.adverse_event,
+          followup_month: Number(form.followup_month),
+          visit_week: Number(form.visit_week),
+          poem_q1: Number(poem[0]),
+          poem_q2: Number(poem[1]),
+          poem_q3: Number(poem[2]),
+          poem_q4: Number(poem[3]),
+          poem_q5: Number(poem[4]),
+          poem_q6: Number(poem[5]),
+          poem_q7: Number(poem[6]),
+          poem_total: Number(poemTotal.value),
+          itch_vas: Number(form.itch_vas),
+          sleep_vas: Number(form.sleep_vas),
+          relapse_this_month: !!form.relapse_this_month,
+          tcs_days: Number(form.tcs_days || 0),
+          tci_days: Number(form.tci_days || 0),
+          moisturizer_days: Number(form.moisturizer_days || 0),
+          self_discontinuation: !!form.self_discontinuation,
+          unplanned_visit: !!form.unplanned_visit,
+          treatment_escalation: !!form.treatment_escalation,
+          adverse_event: form.adverse_event || "",
           photo_url: photo.photo_url,
-          photo_uploaded: photo.photo_uploaded
+          photo_uploaded: photo.photo_uploaded,
+          followup_completed: true
         };
 
         const { error } = await supabaseClient.from("followup_table").insert([payload]);
         if (error) throw error;
 
-        vant.showSuccessToast("随访提交成功");
-      } catch (err) {
+        saveStatus({ time:nowText(), study_id:studyId, month:payload.followup_month, poem_total:payload.poem_total, type:"followup", status:"成功" });
+        statusRows.value = loadStatus();
+        submittedStudyId.value = studyId;
+        submittedMonth.value = payload.followup_month;
+        submittedPoemTotal.value = payload.poem_total;
+        submitted.value = true;
+      } catch(err) {
         console.error(err);
-        vant.showDialog({ title: "提交失败", message: err.message || "请稍后重试" });
+        saveStatus({ time:nowText(), study_id:studyId, month:form.followup_month, poem_total:poemTotal.value, type:"followup", status:"失败: " + (err.message || "未知错误") });
+        statusRows.value = loadStatus();
+        vant.showDialog({ title:"提交失败", message:err.message || "请稍后重试" });
       } finally {
         loading.value = false;
       }
     }
 
-    return { form, poem, poemQuestions, poemTotal, loading, handleFile, submitForm };
+    function nextMonth() {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.set("study_id", submittedStudyId.value);
+      nextUrl.searchParams.set("month", String(Number(submittedMonth.value) + 1));
+      window.location.href = nextUrl.toString();
+    }
+
+    onMounted(() => {
+      const qStudyId = getQueryParam("study_id");
+      const qMonth = getQueryParam("month");
+      if (qStudyId) form.study_id = qStudyId.trim().toUpperCase();
+      if (qMonth && !Number.isNaN(Number(qMonth))) form.followup_month = Number(qMonth);
+      statusRows.value = loadStatus();
+    });
+
+    return {
+      form, poem, poemQuestions, poemTotal, loading, selectedFile, photoInfo,
+      submitted, submittedStudyId, submittedMonth, submittedPoemTotal,
+      statusRows, handleFile, submitForm, nextMonth
+    };
   }
 }).use(vant).mount("#app");
 </script>
