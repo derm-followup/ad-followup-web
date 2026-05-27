@@ -185,7 +185,6 @@
       const { data, error } = await supabaseClient
         .from("baseline_table")
         .insert([payload])
-        .select();
 
       if (error) {
         log("baseline_table 写入失败", error);
@@ -230,7 +229,6 @@
       const { data, error } = await supabaseClient
         .from("followup_table")
         .insert([payload])
-        .select();
 
       if (error) {
         log("followup_table 写入失败", error);
