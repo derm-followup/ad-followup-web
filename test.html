@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supabase 数据库测试</title>
+  <link rel="stylesheet" href="https://fastly.jsdelivr.net/npm/vant@4/lib/index.css" />
+  <style>
+    body { background:#f7f8fa; margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .page { max-width: 720px; margin: 0 auto; padding: 16px 12px 36px; }
+    .title { font-size: 22px; font-weight: 700; margin: 8px 4px 6px; }
+    .subtitle { color:#666; font-size: 13px; line-height:1.5; margin:0 4px 14px; }
+    .card { margin: 12px 0; border-radius: 14px; overflow:hidden; }
+    .log {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background:#111827;
+      color:#d1fae5;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.5;
+      min-height: 120px;
+    }
+    .warn { color:#ee0a24; font-size:12px; margin:8px 4px; }
+  </style>
+</head>
+<body>
+<div id="app" class="page">
+  <div class="title">Supabase 数据库测试页</div>
+  <div class="subtitle">
+    用于测试 GitHub Pages → Supabase 数据库是否能写入。测试成功后，可在 Supabase Table Editor 查看是否新增测试数据。
+  </div>
+
+  <van-notice-bar
+    left-icon="warning-o"
+    text="测试前请先替换 HTML 里的 SUPABASE_URL 和 SUPABASE_ANON_KEY；不要使用 service_role key。"
+  />
+
+  <van-cell-group inset class="card">
+    <van-field v-model="studyId" label="测试编号" placeholder="如 TEST001" />
+    <van-field name="sex" label="性别">
+      <template #input>
+        <van-radio-group v-model="sex" direction="horizontal">
+          <van-radio name="M">男</van-radio>
+          <van-radio name="F">女</van-radio>
+        </van-radio-group>
+      </template>
+    </van-field>
+    <van-field v-model.number="ageMonth" type="number" label="年龄(月)" />
+    <van-field v-model.number="followupMonth" type="number" label="随访月" />
+  </van-cell-group>
+
+  <div style="margin: 14px 0;">
+    <van-button block round type="primary" :loading="loading" @click="testBaselineInsert">
+      测试写入 baseline_table
+    </van-button>
+  </div>
+
+  <div style="margin: 14px 0;">
+    <van-button block round type="success" :loading="loading" @click="testFollowupInsert">
+      测试写入 followup_table
+    </van-button>
+  </div>
+
+  <div style="margin: 14px 0;">
+    <van-button block round plain type="default" @click="clearLog">
+      清空日志
+    </van-button>
+  </div>
+
+  <div class="warn">
+    如果提交失败，优先检查：1）Supabase URL/key 是否正确；2）表名和字段名是否一致；3）RLS 是否阻止 insert。
+  </div>
+
+  <div class="log">{{ logText }}</div>
+</div>
+
+<script src="https://fastly.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://fastly.jsdelivr.net/npm/vant@4/lib/vant.min.js"></script>
+<script src="https://fastly.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+const SUPABASE_URL = "https://hogbiwyvsttqdkriugqt.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhvZ2Jpd3l2c3R0cWRrcml1Z3F0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzExNzcsImV4cCI6MjA5NTAwNzE3N30.7gz9aVE9YRwkz69MPgkOJxtZ1EhwWmiNLRpTWaTl0bg";
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const { createApp, ref } = Vue;
+
+createApp({
+  setup() {
+    const loading = ref(false);
+    const studyId = ref("TEST" + Date.now().toString().slice(-6));
+    const sex = ref("M");
+    const ageMonth = ref(36);
+    const followupMonth = ref(1);
+    const logText = ref("等待测试...\n");
+
+    function log(message, obj) {
+      const time = new Date().toLocaleString();
+      let line = `[${time}] ${message}`;
+      if (obj !== undefined) {
+        try {
+          line += "\n" + JSON.stringify(obj, null, 2);
+        } catch (e) {
+          line += "\n" + String(obj);
+        }
+      }
+      logText.value = line + "\n\n" + logText.value;
+      console.log(message, obj || "");
+    }
+
+    function clearLog() {
+      logText.value = "";
+    }
+
+    async function testBaselineInsert() {
+      loading.value = true;
+      const payload = {
+        study_id: studyId.value.trim().toUpperCase(),
+        sex: sex.value,
+        age_month: Number(ageMonth.value),
+        disease_duration_month: 12,
+        onset_age_month: 12,
+        baseline_easi: 5.5,
+        baseline_iga: 2,
+        itch_nrs_baseline: 5,
+        sleep_nrs_baseline: 3,
+        relapse_past_6m: 2,
+        family_atopy: false,
+        allergic_rhinitis: false,
+        asthma: false,
+        food_allergy: false,
+        steroid_phobia_nrs: 5,
+        moisturizer_freq: "daily_once",
+        group_type: "usual_care",
+        initial_treatment: "test insert",
+        consent_status: true
+      };
+
+      log("准备写入 baseline_table", payload);
+
+      const { data, error } = await supabaseClient
+        .from("baseline_table")
+        .insert([payload])
+        .select();
+
+      loading.value = false;
+
+      if (error) {
+        log("baseline_table 写入失败", error);
+        vant.showFailToast("baseline 写入失败");
+      } else {
+        log("baseline_table 写入成功", data);
+        vant.showSuccessToast("baseline 写入成功");
+      }
+    }
+
+    async function testFollowupInsert() {
+      loading.value = true;
+      const payload = {
+        study_id: studyId.value.trim().toUpperCase(),
+        followup_month: Number(followupMonth.value),
+        visit_week: 0,
+        poem_q1: 1,
+        poem_q2: 1,
+        poem_q3: 0,
+        poem_q4: 0,
+        poem_q5: 0,
+        poem_q6: 1,
+        poem_q7: 2,
+        poem_total: 5,
+        itch_vas: 4,
+        sleep_vas: 2,
+        relapse_this_month: false,
+        relapse_date: null,
+        tcs_days: 3,
+        tci_days: 0,
+        moisturizer_days: 20,
+        self_discontinuation: false,
+        unplanned_visit: false,
+        treatment_escalation: false,
+        adverse_event: "test insert",
+        photo_url: "",
+        photo_uploaded: false,
+        followup_completed: true
+      };
+
+      log("准备写入 followup_table", payload);
+
+      const { data, error } = await supabaseClient
+        .from("followup_table")
+        .insert([payload])
+        .select();
+
+      loading.value = false;
+
+      if (error) {
+        log("followup_table 写入失败", error);
+        vant.showFailToast("followup 写入失败");
+      } else {
+        log("followup_table 写入成功", data);
+        vant.showSuccessToast("followup 写入成功");
+      }
+    }
+
+    return {
+      loading,
+      studyId,
+      sex,
+      ageMonth,
+      followupMonth,
+      logText,
+      clearLog,
+      testBaselineInsert,
+      testFollowupInsert
+    };
+  }
+}).use(vant).mount("#app");
+</script>
+</body>
+</html>
