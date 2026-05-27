@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="https://unpkg.com/vant@4/lib/index.css" />
   <style>
     body { background:#f7f8fa; margin:0; }
+    [v-cloak] { display:none; }
     .page { max-width:760px; margin:0 auto; padding-bottom:32px; }
     .header { padding:18px 16px 8px; }
     .title { font-size:22px; font-weight:700; }
@@ -15,6 +16,8 @@
     .qtitle { font-size:14px; color:#333; padding:12px 16px 4px; }
     .score { font-weight:700; color:#1989fa; }
     .success-card { margin:12px; background:#fff; border-radius:16px; padding:18px; box-shadow:0 2px 10px rgba(0,0,0,.05); }
+    .success-card h2 { font-size:28px; line-height:1.25; margin:14px 0 12px; color:#07c160; }
+    .success-card div { font-size:15px; line-height:1.6; }
     .study-id { font-size:22px; font-weight:800; color:#1989fa; letter-spacing:.5px; margin:8px 0; word-break:break-all; }
     .photo-note { color:#888; font-size:12px; padding:0 16px 10px; line-height:1.5; }
     .mini-table { width:100%; border-collapse:collapse; font-size:12px; background:#fff; }
@@ -23,7 +26,7 @@
   </style>
 </head>
 <body>
-<div id="app" class="page">
+<div id="app" class="page" v-cloak>
   <div class="header">
     <div class="title">儿童AD月度随访</div>
     <div class="subtitle">家长填写。请使用医生给您的研究编号。建议每月填写一次，照片请上传局部皮损图，避免面部或可识别身份信息。</div>
@@ -33,9 +36,9 @@
     <van-icon name="checked" color="#07c160" size="36" />
     <h2>本月随访已完成</h2>
     <div>研究编号</div>
-    <div class="study-id">{ submittedStudyId }</div>
-    <div>随访月份：第 { submittedMonth } 月</div>
-    <div>POEM总分：{ submittedPoemTotal } 分</div>
+    <div class="study-id">{{ submittedStudyId }}</div>
+    <div>随访月份：第 {{ submittedMonth }} 月</div>
+    <div>POEM总分：{{ submittedPoemTotal }} 分</div>
     <div style="margin-top:12px;color:#666;font-size:13px;">请按医生要求下月继续填写。若皮疹明显加重或出现不适，请及时复诊。</div>
     <van-button round block type="primary" style="margin-top:14px" @click="nextMonth">填写下月随访</van-button>
   </div>
@@ -63,7 +66,7 @@
       <van-field v-for="(q, idx) in poemQuestions" :key="idx" :label="'Q' + (idx+1)">
         <template #input>
           <div style="width:100%;">
-            <div style="font-size:13px;margin-bottom:8px;">{ q }</div>
+            <div style="font-size:13px;margin-bottom:8px;">{{ q }}</div>
             <van-radio-group v-model="poem[idx]" direction="horizontal">
               <van-radio :name="0">0天</van-radio>
               <van-radio :name="1">1-2天</van-radio>
@@ -81,13 +84,13 @@
       <van-field name="itch_vas" label="瘙痒VAS">
         <template #input>
           <van-slider v-model="form.itch_vas" :min="0" :max="10" bar-height="6px" style="width:70%" />
-          <span style="margin-left:12px" class="score">{ form.itch_vas }</span>
+          <span style="margin-left:12px" class="score">{{ form.itch_vas }}</span>
         </template>
       </van-field>
       <van-field name="sleep_vas" label="睡眠影响">
         <template #input>
           <van-slider v-model="form.sleep_vas" :min="0" :max="10" bar-height="6px" style="width:70%" />
-          <span style="margin-left:12px" class="score">{ form.sleep_vas }</span>
+          <span style="margin-left:12px" class="score">{{ form.sleep_vas }}</span>
         </template>
       </van-field>
       <van-field name="relapse_this_month" label="本月是否复发"><template #input><van-switch v-model="form.relapse_this_month" size="22" /></template></van-field>
@@ -127,7 +130,7 @@
         <thead><tr><th>时间</th><th>study_id</th><th>月份</th><th>POEM</th><th>状态</th></tr></thead>
         <tbody>
           <tr v-for="row in statusRows" :key="row.id">
-            <td>{ row.time }</td><td>{ row.study_id }</td><td>{ row.month || '-' }</td><td>{ row.poem_total ?? '-' }</td><td>{ row.status }</td>
+            <td>{{ row.time }}</td><td>{{ row.study_id }}</td><td>{{ row.month || '-' }}</td><td>{{ row.poem_total ?? '-' }}</td><td>{{ row.status }}</td>
           </tr>
         </tbody>
       </table>
