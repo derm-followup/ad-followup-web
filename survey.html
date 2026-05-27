@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>儿童AD月度随访</title>
+  <link rel="stylesheet" href="https://fastly.jsdelivr.net/npm/vant@4/lib/index.css" />
+  <style>
+    body { background:#f7f8fa; margin:0; }
+    .page { max-width:760px; margin:0 auto; padding-bottom:32px; }
+    .header { padding:18px 16px 8px; }
+    .title { font-size:22px; font-weight:700; }
+    .subtitle { color:#666; font-size:13px; margin-top:6px; line-height:1.5; }
+    .card { margin:12px; border-radius:14px; overflow:hidden; }
+    .qtitle { font-size:14px; color:#333; padding: 12px 16px 4px; }
+    .score { font-weight:700; color:#1989fa; }
+  </style>
+</head>
+<body>
+<div id="app" class="page">
+  <div class="header">
+    <div class="title">儿童AD月度随访</div>
+    <div class="subtitle">家长填写。请根据孩子过去1周/本月实际情况填写。照片请上传清晰皮损照片。</div>
+  </div>
+
+  <van-form @submit="submitForm">
+    <van-cell-group inset class="card">
+      <van-field v-model="form.study_id" label="研究编号" placeholder="如 AD001" required />
+      <van-field name="followup_month" label="随访月份">
+        <template #input>
+          <van-stepper v-model="form.followup_month" min="1" max="12" />
+        </template>
+      </van-field>
+      <van-field name="visit_week" label="随访周数">
+        <template #input>
+          <van-radio-group v-model="form.visit_week" direction="horizontal">
+            <van-radio :name="4">4周</van-radio>
+            <van-radio :name="12">12周</van-radio>
+            <van-radio :name="24">24周</van-radio>
+            <van-radio :name="0">月度</van-radio>
+          </van-radio-group>
+        </template>
+      </van-field>
+    </van-cell-group>
+
+    <van-cell-group inset class="card">
+      <div class="qtitle">POEM 评分：过去1周孩子有几天出现以下情况？</div>
+      <van-field v-for="(q, idx) in poemQuestions" :key="idx" :label="'Q' + (idx+1)">
+        <template #input>
+          <div style="width:100%;">
+            <div style="font-size:13px;margin-bottom:8px;">{{ q }}</div>
+            <van-radio-group v-model="poem[idx]" direction="horizontal">
+              <van-radio :name="0">0天</van-radio>
+              <van-radio :name="1">1-2天</van-radio>
+              <van-radio :name="2">3-4天</van-radio>
+              <van-radio :name="3">5-6天</van-radio>
+              <van-radio :name="4">每天</van-radio>
+            </van-radio-group>
+          </div>
+        </template>
+      </van-field>
+      <van-cell title="POEM总分" :value="poemTotal + ' 分'" />
+    </van-cell-group>
+
+    <van-cell-group inset class="card">
+      <van-field name="itch_vas" label="瘙痒VAS">
+        <template #input>
+          <van-slider v-model="form.itch_vas" :min="0" :max="10" bar-height="6px" style="width:70%" />
+          <span style="margin-left:12px" class="score">{{ form.itch_vas }}</span>
+        </template>
+      </van-field>
+      <van-field name="sleep_vas" label="睡眠影响">
+        <template #input>
+          <van-slider v-model="form.sleep_vas" :min="0" :max="10" bar-height="6px" style="width:70%" />
+          <span style="margin-left:12px" class="score">{{ form.sleep_vas }}</span>
+        </template>
+      </van-field>
+      <van-field name="relapse_this_month" label="本月是否复发">
+        <template #input><van-switch v-model="form.relapse_this_month" size="22" /></template>
+      </van-field>
+      <van-field v-if="form.relapse_this_month" v-model="form.relapse_date" type="date" label="复发日期" />
+    </van-cell-group>
+
+    <van-cell-group inset class="card">
+      <van-field v-model.number="form.tcs_days" type="number" label="本月激素天数" placeholder="0-31" />
+      <van-field v-model.number="form.tci_days" type="number" label="本月TCI天数" placeholder="如他克莫司/吡美莫司" />
+      <van-field v-model.number="form.moisturizer_days" type="number" label="本月保湿天数" placeholder="0-31" />
+      <van-field name="self_discontinuation" label="是否自行停药/减量">
+        <template #input><van-switch v-model="form.self_discontinuation" size="22" /></template>
+      </van-field>
+      <van-field name="unplanned_visit" label="是否非计划复诊">
+        <template #input><van-switch v-model="form.unplanned_visit" size="22" /></template>
+      </van-field>
+      <van-field name="treatment_escalation" label="是否升级治疗">
+        <template #input><van-switch v-model="form.treatment_escalation" size="22" /></template>
+      </van-field>
+      <van-field v-model="form.adverse_event" rows="2" autosize type="textarea" label="不良反应/备注" placeholder="没有可不填" />
+    </van-cell-group>
+
+    <van-cell-group inset class="card">
+      <van-field label="上传皮损照片">
+        <template #input>
+          <input type="file" accept="image/jpeg,image/png,image/webp" @change="handleFile" />
+        </template>
+      </van-field>
+    </van-cell-group>
+
+    <div style="margin:20px 12px;">
+      <van-button round block type="primary" native-type="submit" :loading="loading">提交随访</van-button>
+    </div>
+  </van-form>
+</div>
+
+<script src="https://fastly.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://fastly.jsdelivr.net/npm/vant@4/lib/vant.min.js"></script>
+<script src="https://fastly.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+
+// ====== Supabase 配置：请替换为你自己的 ======
+const SUPABASE_URL = "https://你的项目.supabase.co";
+const SUPABASE_ANON_KEY = "你的 anon public key";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const { createApp, reactive, ref, computed } = Vue;
+
+createApp({
+  setup() {
+    const loading = ref(false);
+    const selectedFile = ref(null);
+    const poem = reactive([0,0,0,0,0,0,0]);
+
+    const poemQuestions = [
+      "皮肤瘙痒",
+      "因皮肤问题影响睡眠",
+      "皮肤出血",
+      "皮肤渗出/流水",
+      "皮肤裂口",
+      "皮肤脱屑",
+      "皮肤干燥/粗糙"
+    ];
+
+    const form = reactive({
+      study_id: "",
+      followup_month: 1,
+      visit_week: 0,
+      itch_vas: 0,
+      sleep_vas: 0,
+      relapse_this_month: false,
+      relapse_date: "",
+      tcs_days: 0,
+      tci_days: 0,
+      moisturizer_days: 0,
+      self_discontinuation: false,
+      unplanned_visit: false,
+      treatment_escalation: false,
+      adverse_event: ""
+    });
+
+    const poemTotal = computed(() => poem.reduce((a,b) => a + Number(b || 0), 0));
+
+    function handleFile(e) {
+      selectedFile.value = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+      if (selectedFile.value && selectedFile.value.size > 5 * 1024 * 1024) {
+        vant.showToast("图片超过5MB，请压缩后上传");
+        selectedFile.value = null;
+        e.target.value = "";
+      }
+    }
+
+    async function uploadPhoto(studyId) {
+      if (!selectedFile.value) return { photo_url: "", photo_uploaded: false };
+      const file = selectedFile.value;
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${studyId}/M${form.followup_month}_${Date.now()}.${ext}`;
+
+      const { data, error } = await supabaseClient.storage
+        .from("ad-photos")
+        .upload(path, file, { upsert: false });
+
+      if (error) throw error;
+
+      const { data: urlData } = supabaseClient.storage
+        .from("ad-photos")
+        .getPublicUrl(data.path);
+
+      return { photo_url: urlData.publicUrl, photo_uploaded: true };
+    }
+
+    async function submitForm() {
+      if (!form.study_id) {
+        vant.showToast("请填写研究编号");
+        return;
+      }
+      loading.value = true;
+      try {
+        const studyId = form.study_id.trim().toUpperCase();
+        const photo = await uploadPhoto(studyId);
+
+        const payload = {
+          study_id: studyId,
+          followup_month: form.followup_month,
+          visit_week: form.visit_week,
+          poem_q1: poem[0],
+          poem_q2: poem[1],
+          poem_q3: poem[2],
+          poem_q4: poem[3],
+          poem_q5: poem[4],
+          poem_q6: poem[5],
+          poem_q7: poem[6],
+          poem_total: poemTotal.value,
+          itch_vas: form.itch_vas,
+          sleep_vas: form.sleep_vas,
+          relapse_this_month: form.relapse_this_month,
+          relapse_date: form.relapse_this_month ? form.relapse_date || null : null,
+          tcs_days: form.tcs_days || 0,
+          tci_days: form.tci_days || 0,
+          moisturizer_days: form.moisturizer_days || 0,
+          self_discontinuation: form.self_discontinuation,
+          unplanned_visit: form.unplanned_visit,
+          treatment_escalation: form.treatment_escalation,
+          adverse_event: form.adverse_event,
+          photo_url: photo.photo_url,
+          photo_uploaded: photo.photo_uploaded
+        };
+
+        const { error } = await supabaseClient.from("followup_table").insert([payload]);
+        if (error) throw error;
+
+        vant.showSuccessToast("随访提交成功");
+      } catch (err) {
+        console.error(err);
+        vant.showDialog({ title: "提交失败", message: err.message || "请稍后重试" });
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    return { form, poem, poemQuestions, poemTotal, loading, handleFile, submitForm };
+  }
+}).use(vant).mount("#app");
+</script>
+</body>
+</html>
